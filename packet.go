@@ -1,4 +1,4 @@
-package main
+package netsimK
 
 type NetPacket interface {
 	// Marshall(payload []byte) ([]byte, error)
@@ -32,4 +32,8 @@ type IPPacket struct {
 
 func (p *IPPacket) Size() int {
 	return int(p.TotalSize)
+}
+
+func (p *SimPacket) Size() int {
+	return len(p.Payload)
 }
