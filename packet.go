@@ -1,5 +1,7 @@
 package netsimK
 
+import ()
+
 type NetPacket interface {
 	// Marshall(payload []byte) ([]byte, error)
 	// UnMarshall(p []byte) (*NetPacket, error)
@@ -7,10 +9,12 @@ type NetPacket interface {
 }
 
 type SimPacket struct {
-	Source  Node
-	Dest    Node
-	Ack     bool // whether the packet was acknowledged
-	Payload []byte
+	// Source  Node
+	// Dest    Node
+	Source  uint32
+	Dest    uint32
+	Ack     bool   // whether the packet was acknowledged; I guess 16 bytes?
+	Payload []byte // Whatever bytes
 }
 
 type IPPacket struct {
@@ -36,4 +40,8 @@ func (p *IPPacket) Size() int {
 
 func (p *SimPacket) Size() int {
 	return len(p.Payload)
+}
+
+func (p *SimPacket) Marshall() {
+
 }

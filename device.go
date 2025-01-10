@@ -13,7 +13,7 @@ import (
 
 type Node interface {
 	Send(dest Node, payload []byte) error
-	// Receive() error
+	Receive(packet NetPacket) error
 
 	// Connect(dest Node)
 
@@ -70,8 +70,23 @@ func (h *RemoteHost) Close() {
 	h.Active = false
 }
 
-func (h *RemoteHost) Read(packet NetPacket) {
-	h.packets <- packet
+func (h *RemoteHost) Receive(packet NetPacket) error {
+	log.Printf("[%s] received a net packet\n", h.Name)
+	switch packet.(type) {
+	case *SimPacket:
+		if !packet.(*SimPacket).Ack {
+			h.packets <- packet
+			p := SimPacket{
+				Source:  h,
+				Dest:    packet.(*SimPacket).Source,
+				Ack:     true,
+				Payload: []byte("ACK"),
+			}
+			h.Send(h.router, p.Marshall()) // maybe I could start using the router
+			// Because it should be a node also so that could work
+		}
+	}
+	return nil
 }
 func NewRemoteNode(name string, ip net.IP, port int) *RemoteHost {
 	log.Printf("Node [%s] - %s:%d -> succesfully initialized\n", name, ip.String(), port)
@@ -166,11 +181,23 @@ func (d *BasicDevice) Send(dest Node, payload []byte) error { // payload could a
 		if err != nil {
 			return err
 		}
+	case *RemoteHost:
+		log.Printf("[%s] sending packet to [%s]: %s\n", d.Name, dest.(*RemoteHost).Name, string(payload))
+		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", dest.(*RemoteHost).IP.String(), dest.(*RemoteHost).Port))
+		if err != nil {
+			// log.Printf("[%s] failed to connect to [%s] -> %v", d.Name, dest.(*BasicDevice).Name, err)
+			return err
+		}
+		defer conn.Close()
+		_, err = conn.Write(payload)
+		if err != nil {
+			return err
+		}
 	}
-	return nil
+	return fmt.Errorf("Shouldn't have gotten to this line\n")
 }
 
-func (d *BasicDevice) Receive() error {
+func (d *BasicDevice) Receive(p NetPacket) error {
 	// for p := range d.packets {
 	// 	log.Printf("[%s] received packet from [%s]: %s", d.Name, p.(*SimPacket).Source.(*BasicDevice).Name, string(p.(*SimPacket).Payload))
 	// 	if d.callback != nil {

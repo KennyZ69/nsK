@@ -1,6 +1,7 @@
 package netsimK
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -47,11 +48,14 @@ func (n *Network) AddNode(node Node) {
 
 func (n *Network) GenerateTraffic() {
 	log.Println("Generating traffic ...")
+	rep := make(chan string)
+	n.wg.Add(1)
 	for _, src := range n.nodes {
 		for _, dest := range n.nodes {
 			if src != dest {
 				// go src.Connect(dest)
 				go func(src, dest Node) {
+					defer n.wg.Done()
 					for {
 						p := &SimPacket{
 							// Source:  src,
@@ -60,11 +64,20 @@ func (n *Network) GenerateTraffic() {
 						}
 						if err := src.Send(dest, p.Payload); err != nil {
 							log.Printf("[%v] failed to send packet to [%v] -> %v\n", src, dest, err)
+							rep <- fmt.Sprintf("[%v] failed to send packet to [%v] -> %v\n", src, dest, err)
+						} else {
+							log.Printf("Successfully sent a packet from [%v] to [%v]\n", src, dest)
+							// time.Sleep(1 * time.Second)
+							rep <- fmt.Sprintf("Successfully sent a packet from [%v] to [%v]\n", src, dest)
 						}
-						log.Printf("Successfully sent a packet from [%v] to [%v]\n", src, dest)
-						time.Sleep(1 * time.Second)
 					}
 				}(src, dest)
+				go func() {
+					select {
+					case msg := <-rep:
+						log.Print(msg)
+					}
+				}()
 			}
 		}
 	}
