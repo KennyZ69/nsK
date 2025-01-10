@@ -37,8 +37,9 @@ func main() {
 	n := netsimK.CreateNetwork(nodes, time.Second*5)
 
 	n.Start()
-	defer n.Stop()
 
 	n.GenerateTraffic()
 	go n.Wait()
+
+	n.Stop()
 }
