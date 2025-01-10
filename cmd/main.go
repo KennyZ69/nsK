@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"os"
@@ -28,22 +27,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// if len(activeNodes) == 0 {
-	// 	log.Fatalln("Error: There were no active nodes found on given network")
-	// }
-
-	var nodes []netsimK.Node
-	var i, port int = 0, BASE_PORT
-	for n := range activeNodes {
-		log.Println("Host", n.String(), "is active")
-		d, err := netsimK.NewBasicDevice(fmt.Sprintf("D%d", i), n.String(), port)
-		if err != nil || d == nil {
-			continue // I will skip this device
-		}
-		nodes = append(nodes, d)
-		i++
-		port++
-	}
+	// create the basic devices and remote nodes
+	nodes, err := createNodes(activeNodes)
 
 	if len(nodes) < 2 {
 		log.Fatalln("Exiting 'cause not enough nodes could be initialized on given network")
@@ -54,10 +39,6 @@ func main() {
 	n.Start()
 	defer n.Stop()
 
-	go n.GenerateTraffic()
-
-	// d1 := netsimK.NewBasicDevice("D1", "192.168.0.1", 3900)
-	// d2 := netsimK.NewBasicDevice("D2", "192.168.0.2", 3901)
-	// d3 := netsimK.NewBasicDevice("D3", "192.168.0.3", 3902)
-	// nodes := []netsimK.Node{d1, d2, d3}
+	n.GenerateTraffic()
+	go n.Wait()
 }

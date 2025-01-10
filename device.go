@@ -9,13 +9,13 @@ import (
 
 // type Send func(dest *Device, payload []byte) error
 // type Receive func() error
-type TransferCallback func(p NetPacket, src, dest Node, now time.Time)
+// type TransferCallback func(p NetPacket, src, dest Node, now time.Time)
 
 type Node interface {
 	Send(dest Node, payload []byte) error
 	// Receive() error
 
-	Connect(dest Node)
+	// Connect(dest Node)
 
 	Start()
 	Close()
@@ -34,6 +34,54 @@ type BasicDevice struct {
 	packets  chan NetPacket
 
 	// callback TransferCallback
+}
+
+type RemoteHost struct {
+	Name    string
+	IP      net.IP
+	Port    int
+	Active  bool
+	packets chan NetPacket
+}
+
+func (h *RemoteHost) Send(dest Node, paylod []byte) error {
+	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", h.IP.String(), h.Port))
+	if err != nil {
+		return fmt.Errorf("[%s] Error connecting to remote node: %v\n", h.Name, err)
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(paylod)
+	if err != nil {
+		return fmt.Errorf("[%s] Error sending a packet: %v\n", h.Name, err)
+	}
+	return nil
+}
+func (h *RemoteHost) Start() {
+	log.Printf("[%s] starting up ... \n", h.Name)
+	// go func() {
+	// 	for h.Active {
+	// 		go h.Read()
+	// 	}
+	// }()
+}
+func (h *RemoteHost) Close() {
+	log.Printf("[%s] closing down ... \n", h.Name)
+	h.Active = false
+}
+
+func (h *RemoteHost) Read(packet NetPacket) {
+	h.packets <- packet
+}
+func NewRemoteNode(name string, ip net.IP, port int) *RemoteHost {
+	log.Printf("Node [%s] - %s:%d -> succesfully initialized\n", name, ip.String(), port)
+	return &RemoteHost{
+		Name:    name,
+		IP:      ip,
+		Port:    port,
+		Active:  true,
+		packets: make(chan NetPacket, 50),
+	}
 }
 
 func NewBasicDevice(name, addr string, port int) (*BasicDevice, error) {
@@ -66,7 +114,7 @@ func (d *BasicDevice) Start() {
 				// return
 				continue
 			}
-			go d.handleConnection(conn)
+			go d.Read(conn)
 		}
 		d.Listener.Close()
 	}()
@@ -78,7 +126,7 @@ func (d *BasicDevice) Close() {
 	// d.Listener.Close()
 }
 
-func (d *BasicDevice) handleConnection(conn net.Conn) {
+func (d *BasicDevice) Read(conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 1024)
 	for {

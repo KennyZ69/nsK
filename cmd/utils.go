@@ -10,6 +10,7 @@ import (
 	"time"
 
 	netlibk "github.com/KennyZ69/netlibK"
+	netsimK "github.com/KennyZ69/netsimGo"
 )
 
 const (
@@ -24,6 +25,29 @@ func usage() {
 
 	Please also provide root privileges.
 `)
+}
+
+func createNodes(activeNodes chan net.IP) ([]netsimK.Node, error) {
+	var nodes []netsimK.Node
+	var i, port int = 0, BASE_PORT
+	for n := range activeNodes {
+		log.Println("Host", n.String(), "is active")
+		if loc := isIPinLocalIfi(n); !loc {
+			r := netsimK.NewRemoteNode(fmt.Sprintf("R%d", i), n, port)
+			nodes = append(nodes, r)
+		} else {
+			d, err := netsimK.NewBasicDevice(fmt.Sprintf("D%d", i), n.String(), port)
+			if err != nil || d == nil {
+				continue // I will skip this device
+			}
+			nodes = append(nodes, d)
+
+		}
+		i++
+		port++
+	}
+
+	return nodes, nil
 }
 
 func getIfiFromCIDR(cidr string) (*string, error) {
@@ -117,4 +141,27 @@ func getInputIPs(ifaceFlag, ipStart *string) ([]net.IP, *net.Interface) {
 	}
 
 	return ipArr, ifi
+}
+
+func isIPinLocalIfi(IP net.IP) bool {
+	ifis, err := net.Interfaces()
+	if err != nil {
+		log.Printf("Error fetching net interfaces: %v\n", err)
+		return false
+	}
+
+	for _, ifi := range ifis {
+		addrs, err := ifi.Addrs()
+		if err != nil {
+			log.Printf("Error getting addrs for: %s: %v\n", ifi.Name, err)
+			return false
+		}
+
+		for _, addr := range addrs {
+			if ipNet, ok := addr.(*net.IPNet); ok && ipNet.IP.String() == IP.String() {
+				return true
+			}
+		}
+	}
+	return false
 }

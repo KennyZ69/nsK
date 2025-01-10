@@ -61,6 +61,7 @@ func (n *Network) GenerateTraffic() {
 						if err := src.Send(dest, p.Payload); err != nil {
 							log.Printf("[%v] failed to send packet to [%v] -> %v\n", src, dest, err)
 						}
+						log.Printf("Successfully sent a packet from [%v] to [%v]\n", src, dest)
 						time.Sleep(1 * time.Second)
 					}
 				}(src, dest)
